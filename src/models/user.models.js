@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-    fullname: {
+    fullName: {
       type: String,
       required: true,
       trim: true,
@@ -64,6 +64,35 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.isPasswordCorrect = async function (password) {
   // takes 2 params , the string to be compared and the hashed string if both are equal as in the string after hashing is same as stored hashed string then its same
   return await bcrypt.compare(password, this.password);
+};
+
+// Generating Access Token
+userSchema.methods.generateAccessToken = async function () {
+  return jwt.sign(
+    {
+      _id: this._id, // getting from mongodb
+      email: this.email,
+      username: this.username,
+      fullName: this.fullName,
+    },
+    process.env.ACCESS_TOKEN_SECRET,
+    {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+    }
+  );
+};
+
+// Generating Refresh Token
+userSchema.methods.generateAccessToken = async function () {
+  return jwt.sign(
+    {
+      _id: this._id, // getting from mongodb
+    },
+    process.env.REFRESH_TOKEN_SECRET,
+    {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
+    }
+  );
 };
 
 export const User = mongoose.model('User', userSchema);
