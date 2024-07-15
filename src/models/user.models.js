@@ -1,4 +1,6 @@
 import mongoose, { Schema } from 'mongoose';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 
 const userSchema = new mongoose.Schema(
   {
@@ -46,5 +48,22 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Writing function keyword instead of arrow function is because the pre hook requires the reference for this keyword
+
+// 'pre' middleware is used when we want to do some computation just before saving in db (in this case)
+userSchema.pre('save', async function (next) {
+  if (this.isModified('password')) {
+    // only do hashing if password is updated or else consider the scenario when im updating avatar and my password is getting updated again so thats why adding it in if condition
+    this.password = await bcrypt.hash(this.password, 10); //10 is # of rounds to do hashing
+  }
+  next();
+});
+
+// Check if password is correct
+userSchema.methods.isPasswordCorrect = async function (password) {
+  // takes 2 params , the string to be compared and the hashed string if both are equal as in the string after hashing is same as stored hashed string then its same
+  return await bcrypt.compare(password, this.password);
+};
 
 export const User = mongoose.model('User', userSchema);
