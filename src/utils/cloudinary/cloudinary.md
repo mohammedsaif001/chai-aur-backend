@@ -1,0 +1,3 @@
+While uploading a file in cloudinary what we are doing here is; first take the file from multer, then store it in our local server, then upload it in cloudinary.Once its successful we remove the file from our local server.
+
+This additional step of keeping it in our local server is because, if something goes wrong while upload we have the buffer of reuploading again from our local server to the cloudinary
