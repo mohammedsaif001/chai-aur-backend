@@ -158,7 +158,25 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 const logoutUser = asyncHandler(async (req, res) => {
-  // User
+  // getting userid from user object via request object  which was attached from middleware in verifyJwt
+  await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: { refreshToken: undefined },
+    },
+    { new: true } //new:true is because it will return the updated query result
+  );
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .clearCookie('accessToken', options)
+    .clearCookie('refreshToken', options)
+    .json(new ApiResponse(200, {}, 'User logged out successfully'));
 });
 
-export { registerUser, loginUser };
+export { registerUser, loginUser, logoutUser };
