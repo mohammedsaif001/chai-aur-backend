@@ -83,7 +83,7 @@ userSchema.methods.generateAccessToken = async function () {
 };
 
 // Generating Refresh Token
-userSchema.methods.generateAccessToken = async function () {
+userSchema.methods.generateRefreshToken = async function () {
   return jwt.sign(
     {
       _id: this._id, // getting from mongodb
