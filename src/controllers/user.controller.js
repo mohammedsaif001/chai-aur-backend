@@ -7,8 +7,8 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
+    const accessToken = await user.generateAccessToken();
+    const refreshToken = await user.generateRefreshToken();
 
     user.refreshToken = refreshToken;
 
@@ -115,7 +115,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
 
   // 2. check if username or email exists
-  if (!(username || email))
+  if (!username && !email)
     throw new ApiError(400, 'Username or email is required');
 
   // 3. find the user
@@ -133,10 +133,9 @@ const loginUser = asyncHandler(async (req, res) => {
   );
 
   // Fetching userdetails again because refresh token is appended in above
-  const loggedInUser = User.findById(user._id).select(
+  const loggedInUser = await User.findById(user._id).select(
     '-password -refreshToken'
   );
-
   // 6. send cookies (secured)
   const options = {
     httpOnly: true,
