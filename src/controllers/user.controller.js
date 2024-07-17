@@ -27,7 +27,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   // 3. check if user already exists: username, email
-  const existedUser = User.findOne({
+  const existedUser = await User.findOne({
     $or: [{ username }, { email }],
   });
 
@@ -35,8 +35,8 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, 'User with email or username already exists');
 
   // 4. check for images, check for avatar
-  const avatarLocalPath = req?.files?.avatar[0]?.path;
-  const coverImageLocalPath = req.files?.coverImage[0]?.path;
+  const avatarLocalPath = req?.files?.avatar?.[0]?.path;
+  const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
   if (!avatarLocalPath) throw new ApiError(400, 'Avatar File is Required');
 
   // 5. upload files to cloudinary(avatar) and get the url
@@ -52,14 +52,16 @@ const registerUser = asyncHandler(async (req, res) => {
     coverImage: coverImage?.url || '',
     email,
     password,
-    username: username.toLoweCase(),
+    username: username.toLowerCase(),
   });
 
   // 7. check for user creation
-  const createdUser = await User.findById(user._id);
+  const createdUserForResponse = await User.findById(user._id).select(
+    '-password -refreshToken'
+  );
 
   // 8. remove password and refresh token field from response
-  const createdUserForResponse = createdUser.select('-password -refreshToken');
+  // const createdUserForResponse = createdUser.select('-password -refreshToken');
 
   if (!createdUserForResponse)
     throw new ApiError(500, 'Something went wrong while registering User');
