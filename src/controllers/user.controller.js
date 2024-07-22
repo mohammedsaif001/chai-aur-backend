@@ -1,9 +1,10 @@
-import { asyncHandler } from '../utils/asyncHandler.js';
+import { asyncHandler, asyncHandlerTryCatch } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { User } from '../models/user.models.js';
 import { uploadOnCloudinary } from '../utils/cloudinary/cloudinary.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -351,6 +352,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
   // Aggregation pipeline
   // Here each object is a pipeline/stage of aggregation it's like after completing 1st step goto next state and so on
+  // By default this aggregation will return an array
 
   // 1. Find channel Username in entire User collection
   // 2. compare id witch Subcription model's channel and get the result for subscribers
@@ -359,7 +361,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
   // 4.1 Add Subscribers count with size property
   // 4.2 Add Subscribed to count
   // 4.3 Add isSubscribed flag with if else
-  // 5. Use project and give only necessaary information
+  // 5. Use project and give only necessaary information and set flag as 1
 
   const channel = await User.aggregate([
     {
@@ -430,6 +432,64 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     );
 });
 
+const getWatchHistory = asyncHandlerTryCatch(async (req, res) => {
+  //  1. Match userid if exists
+  // 2. Get the watch history from videos collection
+  // 3. Since this video has the owner field point back to user and get the necessary information using subpipelines
+  // 4. Use project in this subpipeline to get only necessary information
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user._id), // By default mongoose will convert _id to mongoDb id but in case of aggregation pipeline it goes directly and hence we need to explicitly write it
+      },
+    },
+    {
+      $lookup: {
+        from: 'videos',
+        localField: 'watchHistory',
+        foreignField: '_id',
+        as: 'watchHistory',
+        pipeline: [
+          //Nested Pipeline
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'owner',
+              foreignField: '_id',
+              as: 'owner',
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    username: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: '$owner', //Restructuring the owner object from array[0]  which will return by default , we are returning it as an object
+              },
+            },
+          },
+        ],
+      },
+    },
+    {},
+  ]);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200),
+      user[0]?.watchHistory,
+      'Watch History fetched successfully'
+    );
+});
+
 export {
   registerUser,
   loginUser,
@@ -440,4 +500,6 @@ export {
   updateAccount,
   updateUserAvatar,
   updateUserCoverImage,
+  getUserChannelProfile,
+  getWatchHistory,
 };
