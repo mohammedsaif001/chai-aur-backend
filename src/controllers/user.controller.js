@@ -342,6 +342,94 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, 'Cover Image Updated Successfully'));
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+
+  if (!username?.trim()) {
+    throw new ApiError(400, 'Username is missing');
+  }
+
+  // Aggregation pipeline
+  // Here each object is a pipeline/stage of aggregation it's like after completing 1st step goto next state and so on
+
+  // 1. Find channel Username in entire User collection
+  // 2. compare id witch Subcription model's channel and get the result for subscribers
+  // 3. compare id witch Subcription model's subscriber and get the result for subscribedTo
+  // 4. Add additional property in user object and return it as result
+  // 4.1 Add Subscribers count with size property
+  // 4.2 Add Subscribed to count
+  // 4.3 Add isSubscribed flag with if else
+  // 5. Use project and give only necessaary information
+
+  const channel = await User.aggregate([
+    {
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      $lookup: {
+        from: 'subscriptions', // Subcription is converted to subscriptions by default by mongodb -> lowercase and plurals
+        localField: '_id',
+        foreignField: 'channel',
+        as: 'subscribers',
+      },
+    },
+    {
+      $lookup: {
+        from: 'subscriptions',
+        localField: '_id',
+        foreignField: 'subscriber',
+        as: 'subscribedTo',
+      },
+    },
+    {
+      $addFields: {
+        // Add additional fields to existing models of users
+        subscribersCount: {
+          $size: '$subscribers', // add a $ here coz its a field now
+        },
+        channelsSubscribedToCount: {
+          $size: '$channels',
+        },
+        isSubscribed: {
+          $condn: {
+            if: {
+              $in: [req.user?._id, '$subscribers.subscriber'], // checking if my userid is present in the subscribers model
+            },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        fullName: 1,
+        username: 1,
+        subscribersCount: 1,
+        channelsSubscribedToCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverImage: 1,
+        email: 1,
+      },
+    },
+  ]);
+
+  console.log('Channel Property Returns===>', channel);
+
+  if (!channel?.length) {
+    throw new ApiError(404, 'Channel does not exists');
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, channel?.[0], 'User Channel Fetched Successfully')
+    );
+});
+
 export {
   registerUser,
   loginUser,
