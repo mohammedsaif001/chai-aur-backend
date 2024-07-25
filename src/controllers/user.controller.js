@@ -163,7 +163,7 @@ const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: { refreshToken: undefined },
+      $unset: { refreshToken: 1 }, // this removes the field from document
     },
     { new: true } //new:true is because it will return the updated query result
   );
@@ -392,10 +392,10 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
           $size: '$subscribers', // add a $ here coz its a field now
         },
         channelsSubscribedToCount: {
-          $size: '$channels',
+          $size: '$subscribedTo',
         },
         isSubscribed: {
-          $condn: {
+          $cond: {
             if: {
               $in: [req.user?._id, '$subscribers.subscriber'], // checking if my userid is present in the subscribers model
             },
@@ -478,15 +478,16 @@ const getWatchHistory = asyncHandlerTryCatch(async (req, res) => {
         ],
       },
     },
-    {},
   ]);
 
   return res
     .status(200)
     .json(
-      new ApiResponse(200),
-      user[0]?.watchHistory,
-      'Watch History fetched successfully'
+      new ApiResponse(
+        200,
+        user[0]?.watchHistory,
+        'Watch History fetched successfully'
+      )
     );
 });
 
